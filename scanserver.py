@@ -3,16 +3,38 @@
 import os
 from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
 from os import curdir, sep
+import ConfigParser
 
 PORT_NUMBER = 9093
 SCANCOMMAND="/home/prasad/Workspace/scan-server/scanimage.sh"
 SCANSTOP="kill $(ps aux | grep scanimage | grep device | awk '{print $2}')"
+
 class MyHandler(BaseHTTPRequestHandler):
+    def __init__(self):
+        super(MyHandler, sefl).__init__()
+        self.config = ConfigParser.ConfigParser()
+        self.config.read('scanserver.ini')
+    def serve(self, path, restype='text/html'):
+        f=open('static' + path)
+        self.send_response(200)
+        self.send_header('Content-type', restype)
+        self.end_headers()
+        self.wfile.write(f.read())
+        f.close()
+        return
     def do_GET(self):
-        if self.path == "/":
-            self.path="/index.html"
+        print self.path
+        if self.path.endswith('html'):
+            self.serve(self.path)
+            return
+        if self.path.endswith('js'):
+            self.serve(self.path, 'application/javascript')
+            return
         try:
             sendReply = False
+            if self.path.endswith('token'):
+                print self.path
+                return
             if self.path.endswith("scan"):
                 print "found request"
                 os.system(SCANCOMMAND)
