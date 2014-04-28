@@ -31,12 +31,21 @@ class MyHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(io.getvalue())
         return
+    def upload(self, data):
+        filelines=[]
+        for K in data:
+            with open(K) in file:
+                for lines in file:
+                    filelines.append(lines)
+        for J in filelines:
+            print filelines
     def handlerequest(self):
         K=urlparse.urlparse(self.path)
         if K.path.endswith('token'):
             query=dict(urlparse.parse_qsl(K.query))
             self.code=query['code']
-            self.serve('/dir.html')
+            print self.code
+            self.serve('/index.html')
             return False
         if K.path.endswith('dir.json'):
             count = 5
@@ -44,7 +53,8 @@ class MyHandler(BaseHTTPRequestHandler):
                 query=dict(urlparse.parse_qsl(K.query))
                 count=int(query['count'])
             dirs=[d for d in os.listdir('/Users/piyer/windows/workspace/') if os.path.isdir(os.path.join('/Users/piyer/windows/workspace/', d))]
-            d=sorted(dirs, key=lambda x: os.path.getctime(), reverse=True)[:count]
+            dirs=[os.path.join('/Users/piyer/windows/workspace', d) for d in dirs]
+            d=sorted(dirs, key=lambda x: os.path.getctime(x), reverse=True)[:count]
             self.dumpjson(d)
             return False
     def do_GET(self):
@@ -75,6 +85,26 @@ class MyHandler(BaseHTTPRequestHandler):
             return
         except IOError:
             self.send_error(404, 'File not found %s' % self.path)
+    def do_POST(self):
+        if  self.path.endswith('upload.json'):
+            print self.code
+            if not hasattr(self, 'code'):
+                self.send_response(412)
+                self.end_headers()
+                return
+            content_len = int(self.headers.getheader('content-length'))
+            post_body = self.rfile.read(content_len)
+            K=json.loads(post_body)
+            if 'dir' in K:
+                if len(K['dir']) > 0:
+                    self.upload(K['dir'])
+            self.send_response(204)
+            self.end_headers()
+        else:
+            print self.path
+            self.send_response(204)
+            self.end_headers()
+    
 try:
     server = HTTPServer(('', PORT_NUMBER), MyHandler)
     print "Started Server at port ", PORT_NUMBER

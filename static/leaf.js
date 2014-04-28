@@ -1,3 +1,7 @@
+String.prototype.endswith = function(suffix) {
+    return this.indexOf(suffix, this.length - suffix.length) !== -1;
+};
+
 var a = (function(){
 	var init=function(){
 	    $('#login').click(function(){
@@ -31,10 +35,29 @@ var a = (function(){
 				    console.log(jq);
 				});
 		});
-	    
+		$.get('/dir.json', function(data){
+			$.each(data, function(index, d){
+				var K=d.substring(d.lastIndexOf('/'), d.length);
+				$('#dir').append(new Option(K, d));
+			    });
+		    });
+	    $('#upload').click(function(){
+		    var K=[];
+		    $('#dir option:selected').each(function(){
+			    K.push($(this).val());
+			});
+		    $.ajax({
+			    type:'POST',
+				url:'/upload.json',
+				data:JSON.stringify({dir:K}),
+				contentType:'application/json',
+				dataType:'json'});
+		});
 
 	};
 	
 	
 	init();
     })();  
+
+
