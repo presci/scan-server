@@ -34,25 +34,27 @@ class MyHandler(BaseHTTPRequestHandler):
         cookiestring = self.headers.getheader('Cookie')
         if cookiestring is None:
             cookiestring=''
+        print "------ Cookie -- %s"%(cookiestring)
         c = cookie()
         c.load(cookiestring)
         _uuid= uuid().hex
-        if forcenew or self.sessioncookies:
+        print "is Forcenew %s" %(forcenew)
+        if forcenew:
             c[m] = _uuid
             conn.execute('insert into uid_code(uid, code) values("%s", "%s")'%(_uuid, code))
         else :
-            _uuid = c.get('m', _uuid)
+            _uuid = c[m].value
         c[m] = _uuid
         c[m]['httponly'] = True
         c[m]['max-age'] = 3600
         c[m]['expires']=self.date_time_string(time() + 3600)
         return (_uuid, c[m].OutputString())
 
-    def serve(self, path,  code=None, forceNew=False, restype='text/html'):
+    def serve(self, path,  code=None, forcenew=False, restype='text/html'):
         f=open('static' + path)
         self.send_response(200)
         self.send_header('Content-type', restype)
-        _cookie = self._session_cookie(code, forceNew)
+        _cookie = self._session_cookie(code, forcenew)
         self.send_header('Set-Cookie', _cookie[1])
         self.end_headers()
         self.wfile.write(f.read())
@@ -78,15 +80,17 @@ class MyHandler(BaseHTTPRequestHandler):
             print filelines
 
     def handlerequest(self):
+        ## new cookie only if 
+        ## new token from google
         K=urlparse.urlparse(self.path)
-        self._session_cookie()
-
         if K.path.endswith('token'):
+            ## new google token
             query=dict(urlparse.parse_qsl(K.query))
             code=query['code']
-            self.serve('/index.html', code, True)
+            self.serve('/index.html', code=code, forcenew=True)
             return False
         if K.path.endswith('dir.json'):
+            ## dir.json
             count = 5
             if K.query != '':
                 query=dict(urlparse.parse_qsl(K.query))
@@ -102,16 +106,14 @@ class MyHandler(BaseHTTPRequestHandler):
             self.serve(path=self.path)
             return
         if self.path.endswith('js'):
-            self.serve(path=self.path, restype='application/javascript')
+            self.serve(path=self.path,forcenew=False, restype='application/javascript')
             return
         try:
             sendReply = False
             if self.path.endswith("scan"):
-                print "found request"
                 os.system(SCANCOMMAND)
                 sendReply = True
             if self.path.endswith('scanstop'):
-                print 'stopping scan'
                 os.system(SCANSTOP)
                 sendReply = True
             if self.path.endswith('test'):
@@ -144,7 +146,7 @@ class MyHandler(BaseHTTPRequestHandler):
 
 
 conn = sqlite3.connect(':memory:')
-conn.execute('create table uid_code(uid, code)')
+conn.execute('create table uid_code(uid, code, userdata)')
     
 try:
     server = HTTPServer(('', PORT_NUMBER), MyHandler)
